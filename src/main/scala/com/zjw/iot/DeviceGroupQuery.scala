@@ -41,6 +41,7 @@ class DeviceGroupQuery(
   import DeviceGroupQuery._
   import DeviceManager.{Command => _, apply => _, _}
 
+  // 设置超时时间
   timers.startSingleTimer(CollectionTimeout, CollectionTimeout, timeout)
 
   private val respondTemperatureAdapter = context.messageAdapter(WrappedRespondTemperature.apply)
@@ -83,6 +84,7 @@ class DeviceGroupQuery(
     respondWhenAllCollected()
   }
 
+  // 等待设备温度记录信息超时
   private def onCollectionTimout(): Behavior[Command] = {
     repliesSoFar ++= stillWaiting.map(deviceId => deviceId -> DeviceTimedOut)
     stillWaiting = Set.empty

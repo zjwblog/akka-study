@@ -1,13 +1,15 @@
 package com.zjw.iot
 
 import akka.actor.testkit.typed.scaladsl.ScalaTestWithActorTestKit
+import org.apache.logging.log4j.scala.Logging
 import org.scalatest.wordspec.AnyWordSpecLike
 
-class DeviceSpec extends ScalaTestWithActorTestKit with AnyWordSpecLike {
+class DeviceSpec extends ScalaTestWithActorTestKit with AnyWordSpecLike with Logging {
   import Device._
 
   "Device Actor" must {
     "当没有温度信息时返回None" in {
+      logger.info("Hello")
       val probe = createTestProbe[RespondTemperature]()
       val deviceActor = spawn(Device("group", "device"))
 

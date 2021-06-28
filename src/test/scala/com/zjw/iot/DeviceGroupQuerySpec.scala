@@ -16,30 +16,29 @@ class DeviceGroupQuerySpec extends ScalaTestWithActorTestKit with AnyWordSpecLik
   "DeviceGroupQuery Actor" must {
 
     //#query-test-normal
-    "return temperature value for working devices" in {
+    "向DeviceGroupQuery记录一批设备的温度，当记录完成之后返回所有设备的温度信息" in {
       val requester = createTestProbe[RespondAllTemperatures]()
       // 组织一批设备
       val device1 = createTestProbe[Command]()
       val device2 = createTestProbe[Command]()
       val deviceIdToActor = Map("device1" -> device1.ref, "device2" -> device2.ref)
-      // 生成一个DeviceGroupQuery Actor
+      // 生成一个DeviceGroupQuery Actor，并告诉DeviceGroupQuery，有设备1和设备2需要收集温度信息
       val queryActor = spawn(DeviceGroupQuery(deviceIdToActor, requestId = 1, requester = requester.ref, timeout = 3.seconds))
-      //
-      device1.expectMessageType[Device.ReadTemperature]
-      device2.expectMessageType[Device.ReadTemperature]
-
+      // 可以设置设备Actor的返回值类型
+      // device1.expectMessageType[Device.ReadTemperature]
+      // device2.expectMessageType[Device.ReadTemperature]
+      // 向DeviceGroupQuery中记录两个设备的温度信息，之后当所有设备的温度信息收集完成才会返回RespondAllTemperatures
       queryActor ! WrappedRespondTemperature(Device.RespondTemperature(requestId = 0, "device1", Some(1.0)))
       queryActor ! WrappedRespondTemperature(Device.RespondTemperature(requestId = 0, "device2", Some(2.0)))
-
+      //
       requester.expectMessage(
         RespondAllTemperatures(
           requestId = 1,
           temperatures = Map("device1" -> Temperature(1.0), "device2" -> Temperature(2.0))))
     }
-    //#query-test-normal
 
     //#query-test-no-reading
-    "return TemperatureNotAvailable for devices with no readings" in {
+    "向DeviceGroupQuery记录一批设备的温度，当记录完成之后返回所有设备的温度信，并模拟存在设备的温度信息为None的情况" in {
       val requester = createTestProbe[RespondAllTemperatures]()
 
       val device1 = createTestProbe[Command]()
@@ -47,8 +46,7 @@ class DeviceGroupQuerySpec extends ScalaTestWithActorTestKit with AnyWordSpecLik
 
       val deviceIdToActor = Map("device1" -> device1.ref, "device2" -> device2.ref)
 
-      val queryActor =
-        spawn(DeviceGroupQuery(deviceIdToActor, requestId = 1, requester = requester.ref, timeout = 3.seconds))
+      val queryActor = spawn(DeviceGroupQuery(deviceIdToActor, requestId = 1, requester = requester.ref, timeout = 3.seconds))
 
       device1.expectMessageType[Device.ReadTemperature]
       device2.expectMessageType[Device.ReadTemperature]
@@ -61,10 +59,8 @@ class DeviceGroupQuerySpec extends ScalaTestWithActorTestKit with AnyWordSpecLik
           requestId = 1,
           temperatures = Map("device1" -> TemperatureNotAvailable, "device2" -> Temperature(2.0))))
     }
-    //#query-test-no-reading
 
-    //#query-test-stopped
-    "return DeviceNotAvailable if device stops before answering" in {
+    "向DeviceGroupQuery记录一批设备的温度，当在查询之前设备下线" in {
       val requester = createTestProbe[RespondAllTemperatures]()
 
       val device1 = createTestProbe[Command]()
@@ -72,14 +68,12 @@ class DeviceGroupQuerySpec extends ScalaTestWithActorTestKit with AnyWordSpecLik
 
       val deviceIdToActor = Map("device1" -> device1.ref, "device2" -> device2.ref)
 
-      val queryActor =
-        spawn(DeviceGroupQuery(deviceIdToActor, requestId = 1, requester = requester.ref, timeout = 3.seconds))
+      val queryActor = spawn(DeviceGroupQuery(deviceIdToActor, requestId = 1, requester = requester.ref, timeout = 3.seconds))
 
       device1.expectMessageType[Device.ReadTemperature]
       device2.expectMessageType[Device.ReadTemperature]
 
       queryActor ! WrappedRespondTemperature(Device.RespondTemperature(requestId = 0, "device1", Some(2.0)))
-
       device2.stop()
 
       requester.expectMessage(
@@ -87,9 +81,7 @@ class DeviceGroupQuerySpec extends ScalaTestWithActorTestKit with AnyWordSpecLik
           requestId = 1,
           temperatures = Map("device1" -> Temperature(2.0), "device2" -> DeviceNotAvailable)))
     }
-    //#query-test-stopped
 
-    //#query-test-stopped-later
     "return temperature reading even if device stops after answering" in {
       val requester = createTestProbe[RespondAllTemperatures]()
 
@@ -98,8 +90,7 @@ class DeviceGroupQuerySpec extends ScalaTestWithActorTestKit with AnyWordSpecLik
 
       val deviceIdToActor = Map("device1" -> device1.ref, "device2" -> device2.ref)
 
-      val queryActor =
-        spawn(DeviceGroupQuery(deviceIdToActor, requestId = 1, requester = requester.ref, timeout = 3.seconds))
+      val queryActor = spawn(DeviceGroupQuery(deviceIdToActor, requestId = 1, requester = requester.ref, timeout = 3.seconds))
 
       device1.expectMessageType[Device.ReadTemperature]
       device2.expectMessageType[Device.ReadTemperature]
@@ -114,10 +105,8 @@ class DeviceGroupQuerySpec extends ScalaTestWithActorTestKit with AnyWordSpecLik
           requestId = 1,
           temperatures = Map("device1" -> Temperature(1.0), "device2" -> Temperature(2.0))))
     }
-    //#query-test-stopped-later
 
-    //#query-test-timeout
-    "return DeviceTimedOut if device does not answer in time" in {
+    "当收集设备温度超时，返回超时信息" in {
       val requester = createTestProbe[RespondAllTemperatures]()
 
       val device1 = createTestProbe[Command]()
@@ -132,16 +121,13 @@ class DeviceGroupQuerySpec extends ScalaTestWithActorTestKit with AnyWordSpecLik
       device2.expectMessageType[Device.ReadTemperature]
 
       queryActor ! WrappedRespondTemperature(Device.RespondTemperature(requestId = 0, "device1", Some(1.0)))
-
-      // no reply from device2
+      // device2温度信息不记录，等待超时
 
       requester.expectMessage(
         RespondAllTemperatures(
           requestId = 1,
           temperatures = Map("device1" -> Temperature(1.0), "device2" -> DeviceTimedOut)))
     }
-    //#query-test-timeout
-
   }
 
 }
