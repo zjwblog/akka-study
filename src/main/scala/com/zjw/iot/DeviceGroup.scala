@@ -43,15 +43,18 @@ class DeviceGroup(context: ActorContext[DeviceGroup.Command], groupId: String)
       //#query-added
       case trackMsg@RequestTrackDevice(`groupId`, deviceId, replyTo) =>
         deviceIdToActor.get(deviceId) match {
+          // 如果已经注册，则直接返回注册成功信息
           case Some(deviceActor) =>
             replyTo ! DeviceRegistered(deviceActor)
           case None =>
+            // 如果还未注册，则进行设备的创建，然后注册上，最后返回
             context.log.info("Creating device actor for {}", trackMsg.deviceId)
             val deviceActor = context.spawn(Device(groupId, deviceId), s"device-$deviceId")
-            //#device-group-register
+            // 监控设备
             context.watchWith(deviceActor, DeviceTerminated(deviceActor, groupId, deviceId))
-            //#device-group-register
-            deviceIdToActor += deviceId -> deviceActor
+            // 将设备添加到Map中
+            deviceIdToActor += (deviceId -> deviceActor)
+            // 返回注册成功的信息
             replyTo ! DeviceRegistered(deviceActor)
         }
         this
@@ -64,17 +67,14 @@ class DeviceGroup(context: ActorContext[DeviceGroup.Command], groupId: String)
         if (gId == groupId) {
           replyTo ! ReplyDeviceList(requestId, deviceIdToActor.keySet)
           this
-        } else
+        } else {
           Behaviors.unhandled
-      //#device-group-remove
+        }
 
       case DeviceTerminated(_, _, deviceId) =>
         context.log.info("Device actor for {} has been terminated", deviceId)
         deviceIdToActor -= deviceId
         this
-
-      //#query-added
-      // ... other cases omitted
 
       case RequestAllTemperatures(requestId, gId, replyTo) =>
         if (gId == groupId) {

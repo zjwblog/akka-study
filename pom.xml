@@ -5,7 +5,7 @@
   <modelVersion>4.0.0</modelVersion>
 
   <groupId>org.example</groupId>
-  <artifactId>akka-sutdy</artifactId>
+  <artifactId>akka-study</artifactId>
   <version>1.0-SNAPSHOT</version>
 
   <properties>
@@ -28,10 +28,12 @@
     <dependency>
       <groupId>com.typesafe.akka</groupId>
       <artifactId>akka-actor-typed_${scala.binary.version}</artifactId>
+      <version>2.6.15</version>
     </dependency>
     <dependency>
       <groupId>com.typesafe.akka</groupId>
       <artifactId>akka-actor-testkit-typed_${scala.binary.version}</artifactId>
+      <version>2.6.15</version>
       <scope>test</scope>
     </dependency>
     <dependency>

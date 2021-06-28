@@ -67,64 +67,59 @@ class DeviceGroupSpec extends ScalaTestWithActorTestKit with AnyWordSpecLike {
       deviceListProbe.expectMessage(ReplyDeviceList(requestId = 0, Set("device1", "device2")))
     }
 
-    "be able to list active devices after one shuts down" in {
+    "请求添加3个设备，下线设备1，然后列出剩余的设备" in {
       val registeredProbe = createTestProbe[DeviceRegistered]()
       val groupActor = spawn(DeviceGroup("group"))
-
+      // 向指定组添加一个设备，id为device1
       groupActor ! RequestTrackDevice("group", "device1", registeredProbe.ref)
       val registered1 = registeredProbe.receiveMessage()
       val toShutDown = registered1.device
-
+      // 向指定组添加一个设备，id为device2
       groupActor ! RequestTrackDevice("group", "device2", registeredProbe.ref)
       registeredProbe.receiveMessage()
-
-      val deviceListProbe = createTestProbe[ReplyDeviceList]()
-      groupActor ! RequestDeviceList(requestId = 0, groupId = "group", deviceListProbe.ref)
-      deviceListProbe.expectMessage(ReplyDeviceList(requestId = 0, Set("device1", "device2")))
-
-      toShutDown ! Passivate
-      registeredProbe.expectTerminated(toShutDown, registeredProbe.remainingOrDefault)
-
-      // using awaitAssert to retry because it might take longer for the groupActor
-      // to see the Terminated, that order is undefined
-      registeredProbe.awaitAssert {
-        groupActor ! RequestDeviceList(requestId = 1, groupId = "group", deviceListProbe.ref)
-        deviceListProbe.expectMessage(ReplyDeviceList(requestId = 1, Set("device2")))
-      }
-    }
-    //#device-group-list-terminate-test
-
-    //#group-query-integration-test
-    "be able to collect temperatures from all active devices" in {
-      val registeredProbe = createTestProbe[DeviceRegistered]()
-      val groupActor = spawn(DeviceGroup("group"))
-
-      groupActor ! RequestTrackDevice("group", "device1", registeredProbe.ref)
-      val deviceActor1 = registeredProbe.receiveMessage().device
-
-      groupActor ! RequestTrackDevice("group", "device2", registeredProbe.ref)
-      val deviceActor2 = registeredProbe.receiveMessage().device
-
+      // 向指定组添加一个设备，id为device3
       groupActor ! RequestTrackDevice("group", "device3", registeredProbe.ref)
       registeredProbe.receiveMessage()
+      val deviceListProbe = createTestProbe[ReplyDeviceList]()
+      // 列出所有设备Id
+      groupActor ! RequestDeviceList(requestId = 0, groupId = "group", deviceListProbe.ref)
+      deviceListProbe.expectMessage(ReplyDeviceList(requestId = 0, Set("device1", "device2", "device3")))
+      // 请求停止设备1
+      toShutDown ! Passivate
+      registeredProbe.expectTerminated(toShutDown, registeredProbe.remainingOrDefault)
+      // 使用awaitAssert方式，因为对于下线的设备，设备组可能需要一段时间来发现它已经下线
+      registeredProbe.awaitAssert {
+        groupActor ! RequestDeviceList(requestId = 1, groupId = "group", deviceListProbe.ref)
+        deviceListProbe.expectMessage(ReplyDeviceList(requestId = 1, Set("device2", "device3")))
+      }
+    }
 
-      // Check that the device actors are working
+    "获取设备组中所有设备的温度信息" in {
+      val registeredProbe = createTestProbe[DeviceRegistered]()
+      val groupActor = spawn(DeviceGroup("group"))
+      // 添加三个设备
+      groupActor ! RequestTrackDevice("group", "device1", registeredProbe.ref)
+      val deviceActor1 = registeredProbe.receiveMessage().device
+      groupActor ! RequestTrackDevice("group", "device2", registeredProbe.ref)
+      val deviceActor2 = registeredProbe.receiveMessage().device
+      groupActor ! RequestTrackDevice("group", "device3", registeredProbe.ref)
+      registeredProbe.receiveMessage()
+      // 向前两个设备设置温度值，第三个不设置，也就是没有温度信息
       val recordProbe = createTestProbe[TemperatureRecorded]()
       deviceActor1 ! RecordTemperature(requestId = 0, 1.0, recordProbe.ref)
       recordProbe.expectMessage(TemperatureRecorded(requestId = 0))
       deviceActor2 ! RecordTemperature(requestId = 1, 2.0, recordProbe.ref)
       recordProbe.expectMessage(TemperatureRecorded(requestId = 1))
-      // No temperature for device3
-
+      // 验证返回的温度信息是否符合预期
       val allTempProbe = createTestProbe[RespondAllTemperatures]()
       groupActor ! RequestAllTemperatures(requestId = 0, groupId = "group", allTempProbe.ref)
       allTempProbe.expectMessage(
         RespondAllTemperatures(
           requestId = 0,
-          temperatures =
-            Map("device1" -> Temperature(1.0), "device2" -> Temperature(2.0), "device3" -> TemperatureNotAvailable)))
+          temperatures = Map("device1" -> Temperature(1.0), "device2" -> Temperature(2.0), "device3" -> TemperatureNotAvailable)
+        )
+      )
     }
-    //#group-query-integration-test
 
   }
 

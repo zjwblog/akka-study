@@ -47,6 +47,8 @@ class Device(context: ActorContext[Device.Command], groupId: String, deviceId: S
       case ReadTemperature(id, replyTo) =>
         replyTo ! RespondTemperature(id, deviceId, lastTemperatureReading)
         this
+      // 处理设备下线
+      case Passivate => Behaviors.stopped
     }
   }
 

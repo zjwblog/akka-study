@@ -13,20 +13,18 @@ import com.zjw.iot.DeviceManager.TemperatureNotAvailable
 
 class DeviceGroupQuerySpec extends ScalaTestWithActorTestKit with AnyWordSpecLike {
 
-  "DeviceGroupQuery" must {
+  "DeviceGroupQuery Actor" must {
 
     //#query-test-normal
     "return temperature value for working devices" in {
       val requester = createTestProbe[RespondAllTemperatures]()
-
+      // 组织一批设备
       val device1 = createTestProbe[Command]()
       val device2 = createTestProbe[Command]()
-
       val deviceIdToActor = Map("device1" -> device1.ref, "device2" -> device2.ref)
-
-      val queryActor =
-        spawn(DeviceGroupQuery(deviceIdToActor, requestId = 1, requester = requester.ref, timeout = 3.seconds))
-
+      // 生成一个DeviceGroupQuery Actor
+      val queryActor = spawn(DeviceGroupQuery(deviceIdToActor, requestId = 1, requester = requester.ref, timeout = 3.seconds))
+      //
       device1.expectMessageType[Device.ReadTemperature]
       device2.expectMessageType[Device.ReadTemperature]
 
