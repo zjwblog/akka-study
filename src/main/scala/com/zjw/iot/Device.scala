@@ -25,8 +25,7 @@ object Device {
   case object Passivate extends Command
 }
 
-class Device(context: ActorContext[Device.Command], groupId: String, deviceId: String)
-  extends AbstractBehavior[Device.Command](context) {
+class Device(context: ActorContext[Device.Command], groupId: String, deviceId: String) extends AbstractBehavior[Device.Command](context) {
 
   import Device._
 
