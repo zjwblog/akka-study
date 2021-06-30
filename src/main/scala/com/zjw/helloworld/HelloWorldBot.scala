@@ -12,14 +12,15 @@ object HelloWorldBot {
   }
 
   private def bot(greetingCounter: Int, max: Int): Behavior[HelloWorld.Greeted] =
-    Behaviors.receive { (context, message) =>
+    Behaviors.receive((context, message) => {
+      // 收到消息并打印，然后根据设置的阈值决定是否继续向回复者发送消息
       val n = greetingCounter + 1
       context.log.info2("Greeting {} for {}", n, message.whom)
-      if (n == max) {
+      if (n >= max) {
         Behaviors.stopped
       } else {
         message.from ! HelloWorld.Greet(message.whom, context.self)
         bot(n, max)
       }
-    }
+    })
 }
